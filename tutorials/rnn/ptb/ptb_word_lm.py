@@ -72,10 +72,9 @@ from tensorflow.python.client import device_lib
 flags = tf.flags
 logging = tf.logging
 
-flags.DEFINE_string(
-    "model", "small",
-    "A type of model. Possible options are: small, medium, large.")
-flags.DEFINE_string("data_path", None,
+flags.DEFINE_string("model", "small",
+                    "A type of model. Possible options are: small, medium, large.")
+flags.DEFINE_string("data_path", "simple-examples/data",
                     "Where the training/test data is stored.")
 flags.DEFINE_string("save_path", None,
                     "Model output directory.")
@@ -93,6 +92,15 @@ FLAGS = flags.FLAGS
 BASIC = "basic"
 CUDNN = "cudnn"
 BLOCK = "block"
+
+log_fd = open("%d.log" % int(time.time()), 'w')
+
+
+def log(msg):
+  log_msg = "%f - %s" % (time.time(), msg)
+  print(log_msg)
+  log_fd.write(log_msg + "\n")
+  log_fd.flush()
 
 
 def data_type():
@@ -413,7 +421,7 @@ def run_epoch(session, model, eval_op=None, verbose=False):
     iters += model.input.num_steps
 
     if verbose and step % (model.input.epoch_size // 10) == 10:
-      print("%.3f perplexity: %.3f speed: %.0f wps" %
+      log("%.3f perplexity: %.3f speed: %.0f wps" %
             (step * 1.0 / model.input.epoch_size, np.exp(costs / iters),
              iters * model.input.batch_size * max(1, FLAGS.num_gpus) /
              (time.time() - start_time)))
@@ -508,19 +516,21 @@ def main(_):
         lr_decay = config.lr_decay ** max(i + 1 - config.max_epoch, 0.0)
         m.assign_lr(session, config.learning_rate * lr_decay)
 
-        print("Epoch: %d Learning rate: %.3f" % (i + 1, session.run(m.lr)))
+        log("Epoch: %d Learning rate: %.3f" % (i + 1, session.run(m.lr)))
         train_perplexity = run_epoch(session, m, eval_op=m.train_op,
                                      verbose=True)
-        print("Epoch: %d Train Perplexity: %.3f" % (i + 1, train_perplexity))
+        log("Epoch: %d Train Perplexity: %.3f" % (i + 1, train_perplexity))
         valid_perplexity = run_epoch(session, mvalid)
-        print("Epoch: %d Valid Perplexity: %.3f" % (i + 1, valid_perplexity))
+        log("Epoch: %d Valid Perplexity: %.3f" % (i + 1, valid_perplexity))
 
       test_perplexity = run_epoch(session, mtest)
-      print("Test Perplexity: %.3f" % test_perplexity)
+      log("Test Perplexity: %.3f" % test_perplexity)
 
       if FLAGS.save_path:
-        print("Saving model to %s." % FLAGS.save_path)
+        log("Saving model to %s." % FLAGS.save_path)
         sv.saver.save(session, FLAGS.save_path, global_step=sv.global_step)
+
+  log_fd.close()
 
 
 if __name__ == "__main__":
