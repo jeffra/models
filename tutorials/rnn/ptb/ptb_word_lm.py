@@ -465,6 +465,9 @@ def main(_):
   train_data, valid_data, test_data, _ = raw_data
 
   config = get_config()
+  log("Training %s model" % FLAGS.model)
+  log("Using RNN mode: %s" % config.rnn_mode)
+  
   eval_config = get_config()
   eval_config.batch_size = 1
   eval_config.num_steps = 1
@@ -516,6 +519,10 @@ def main(_):
         lr_decay = config.lr_decay ** max(i + 1 - config.max_epoch, 0.0)
         m.assign_lr(session, config.learning_rate * lr_decay)
 
+        if i == 0:
+          start_time = time.time()
+          log("Start time: %f" % start_time)
+
         log("Epoch: %d Learning rate: %.3f" % (i + 1, session.run(m.lr)))
         train_perplexity = run_epoch(session, m, eval_op=m.train_op,
                                      verbose=True)
@@ -523,8 +530,11 @@ def main(_):
         valid_perplexity = run_epoch(session, mvalid)
         log("Epoch: %d Valid Perplexity: %.3f" % (i + 1, valid_perplexity))
 
-      test_perplexity = run_epoch(session, mtest)
-      log("Test Perplexity: %.3f" % test_perplexity)
+      end_time = time.time()
+      log("End time: %f" % end_time)
+      log("Total time train time: %f" % (end_time - start_time))
+      # test_perplexity = run_epoch(session, mtest)
+      # log("Test Perplexity: %.3f" % test_perplexity)
 
       if FLAGS.save_path:
         log("Saving model to %s." % FLAGS.save_path)
